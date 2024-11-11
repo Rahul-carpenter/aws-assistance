@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox, Toplevel
+from tkinter import messagebox, Toplevel, simpledialog
 import os
 import boto3
 import uuid
@@ -23,25 +23,21 @@ def create_basic_window():
     root.title("Feature-Controlled Assistant")
     root.geometry("450x700")
     root.configure(bg="#333333")
-
-    # Header label with improved style
+    
     header_label = tk.Label(root, text="Feature-Controlled Assistant", font=("Helvetica", 18, "bold"), fg="#FFFFFF", bg="#333333")
     header_label.pack(pady=20)
 
-    # Date label to show current date and time
     date = dt.datetime.now()
     date_label = tk.Label(root, text="Date: %s" % date.strftime("%Y-%m-%d %H:%M:%S"), fg="#FFFFFF", bg="#333333")
     date_label.pack(pady=5)
 
-    # Voice assistance button with hover effect
     voice_assistance_button = tk.Button(root, text="Voice Assistance", command=enable_voice_assistance, bg="#4CAF50", fg="white", font=("Helvetica", 12, "bold"))
     voice_assistance_button.pack(pady=15)
     voice_assistance_button.bind("<Enter>", lambda e: voice_assistance_button.config(bg="#45A049"))
     voice_assistance_button.bind("<Leave>", lambda e: voice_assistance_button.config(bg="#4CAF50"))
 
-    # Define feature buttons with styling
     features = [
-        ("Send Email", on_button_email),
+        ("Send Email", send_email),
         ("Create EC2 Instance", on_button_ec2),
         ("Create S3 Bucket", s3_bucket_create),
         ("Open Notepad", on_button_click),
@@ -52,43 +48,35 @@ def create_basic_window():
         ("Take Photo", take_photo)
     ]
 
-    # Create feature buttons with hover effects and consistent styling
     for feature_text, command in features:
         button = tk.Button(root, text=feature_text, command=command, width=25, bg="#008CBA", fg="white", font=("Helvetica", 10, "bold"))
         button.pack(pady=8)
         button.bind("<Enter>", lambda e, b=button: b.config(bg="#007BB5"))
         button.bind("<Leave>", lambda e, b=button: b.config(bg="#008CBA"))
 
-    # Exit button with styling
     exit_button = tk.Button(root, text="Exit", width=15, fg="white", bg="#f44336", font=("Helvetica", 10, "bold"), command=root.destroy)
     exit_button.pack(pady=15)
     exit_button.bind("<Enter>", lambda e: exit_button.config(bg="#E57373"))
     exit_button.bind("<Leave>", lambda e: exit_button.config(bg="#f44336"))
-
     root.mainloop()
 
 def open_custom_input_dialog(title, prompt, on_submit):
-    """Creates a custom input dialog box with a more powerful UI."""
     input_window = Toplevel()
     input_window.title(title)
     input_window.geometry("400x200")
     input_window.configure(bg="#444444")
     
-    # Title Label
     title_label = tk.Label(input_window, text=title, font=("Helvetica", 16, "bold"), fg="#FFFFFF", bg="#444444")
     title_label.pack(pady=10)
 
-    # Prompt Label
     prompt_label = tk.Label(input_window, text=prompt, font=("Helvetica", 12), fg="#CCCCCC", bg="#444444")
     prompt_label.pack(pady=5)
 
-    # Entry Box
     entry_var = tk.StringVar()
     entry_box = tk.Entry(input_window, textvariable=entry_var, font=("Helvetica", 12), width=30)
     entry_box.pack(pady=10)
     entry_box.focus()
 
-    # Submit Button
     submit_button = tk.Button(input_window, text="Submit", command=lambda: [on_submit(entry_var.get()), input_window.destroy()], bg="#008CBA", fg="white", font=("Helvetica", 10, "bold"))
     submit_button.pack(pady=10)
 
@@ -101,7 +89,6 @@ def get_voice_input():
     
     try:
         user_input = recognizer.recognize_google(audio)
-        print(f"User said: {user_input}")
         return user_input
     except sr.UnknownValueError:
         messagebox.showwarning("Voice Assistance", "Sorry, I could not understand your voice.")
@@ -112,7 +99,6 @@ def get_voice_input():
 
 def enable_voice_assistance():
     global voice_assistance_button
-
     voice_assistance_button.config(state=tk.DISABLED)
     user_input = get_voice_input()
     if user_input:
@@ -121,7 +107,7 @@ def enable_voice_assistance():
 
 def process_voice_command(command):
     if "email" in command:
-        on_button_email()
+        send_email()
     elif "EC2" in command:
         on_button_ec2()
     elif "notepad" in command:
@@ -135,31 +121,34 @@ def process_voice_command(command):
     elif "play on YouTube" in command:
         youtube_music()
     else:
-        messagebox.showinfo("Voice Command", "Command not recognized.")
+        messagebox.showinfo("Info", "Command not recognized.")
 
-def on_button_email():
-    def get_email_address(email_address):
-        if email_address:
-            def get_email_message(message):
-                if message:
-                    pywhatkit.send_mail("testprect@gmail.com", "aljeobaueiacqtko", "Subject: Test", message, email_address)
-                    messagebox.showinfo("Email", "Email sent successfully!")
-            open_custom_input_dialog("Send Email", "Enter your message:", get_email_message)
-        else:
-            messagebox.showwarning("Email", "No email address provided.")
+def send_email():
+    msg = get_voice_input()  # Voice input for message
+    recipient_email = simpledialog.askstring("Email Input", "Enter recipient's email address:")
     
-    open_custom_input_dialog("Send Email", "Enter recipient's email address:", get_email_address)
+    if recipient_email and msg:
+        try:
+            pywhatkit.send_mail("testprect@gmail.com", "aljeobaueiacqtko", "Test Code", msg, recipient_email)
+            messagebox.showinfo("Success", f"Email sent to {recipient_email}!")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error sending email: {str(e)}")
+    elif not recipient_email:
+        messagebox.showwarning("Missing Email", "Please provide a recipient email address.")
+    elif not msg:
+        messagebox.showwarning("Missing Message", "No message provided. Please speak your message.")
 
 def on_button_ec2():
     instance_info = create_ec2_instance()
     if instance_info:
-        messagebox.showinfo("EC2 Instance", f"EC2 instance created successfully! Instance ID: {instance_info['InstanceId']}")
+        messagebox.showinfo("Success", f"EC2 instance created successfully!\nInstance ID: {instance_info['InstanceId']}")
     else:
-        messagebox.showerror("EC2 Instance", "Failed to create EC2 instance.")
+        messagebox.showerror("Error", "Failed to create EC2 instance.")
 
 def create_ec2_instance():
     try:
-        response = myec2.run_instances(
+        ec2_client = boto3.client('ec2')
+        response = ec2_client.run_instances(
             ImageId='ami-0a0f1259dd1c90938',
             InstanceType='t2.micro',
             MaxCount=1,
@@ -167,9 +156,11 @@ def create_ec2_instance():
         )
         if 'Instances' in response and len(response['Instances']) > 0:
             return response['Instances'][0]
+        else:
+            return None
     except Exception as e:
-        messagebox.showerror("EC2 Instance Error", f"Error creating EC2 instance: {str(e)}")
-    return None
+        messagebox.showerror("Error", f"Error creating EC2 instance: {str(e)}")
+        return None
 
 def on_button_click():
     os.system("notepad")
@@ -191,17 +182,16 @@ def s3_bucket_create():
             Bucket=bucket_name,
             CreateBucketConfiguration={'LocationConstraint': 'ap-south-1'}
         )
-        messagebox.showinfo("S3 Bucket", f"S3 bucket '{bucket_name}' created successfully!")
+        messagebox.showinfo("Success", f"S3 bucket '{bucket_name}' created.")
     except Exception as e:
-        messagebox.showerror("S3 Bucket Error", f"Error creating S3 bucket: {str(e)}")
+        messagebox.showerror("Error", f"Error creating S3 bucket: {str(e)}")
 
 def youtube_music():
-    def play_on_youtube(song_name):
-        if song_name:
-            pywhatkit.playonyt(song_name)
-            messagebox.showinfo("YouTube", f"Playing {song_name} on YouTube.")
-    
-    open_custom_input_dialog("YouTube", "Enter the song name:", play_on_youtube)
+    song_name = get_voice_input()
+    if song_name:
+        pywhatkit.playonyt(song_name)
+    else:
+        messagebox.showwarning("Input Error", "No song name provided.")
 
 def take_photo():
     cap = cv2.VideoCapture(0)
@@ -209,9 +199,11 @@ def take_photo():
     ret, frame = cap.read()
     if ret:
         cv2.imwrite('photo.jpg', frame)
+        messagebox.showinfo("Photo", "Photo captured and saved as 'photo.jpg'.")
         cap.release()
-        messagebox.showinfo("Take Photo", "Photo saved as 'photo.jpg'")
         cv2.destroyAllWindows()
+    else:
+        messagebox.showerror("Error", "Failed to capture photo.")
 
-# Initialize GUI
+# Run the GUI
 create_basic_window()
